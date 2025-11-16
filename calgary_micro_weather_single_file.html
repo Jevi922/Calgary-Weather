@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Calgary Micro-Weather</title>
+  <meta name="description" content="Micro-weather for Calgary neighbourhoods — live data from Open-Meteo" />
+
+  <!-- Leaflet for map -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-sA+e2YkM6t1gVZ0i2b0rjv3k2s0vM6w8g1Lr9g3y0vA=" crossorigin=""/>
+  <style>
+    :root{--bg:#0f1724;--card:#0b1220;--muted:#9aa7bf;--accent:#60a5fa}
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0;font-family:Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;background:linear-gradient(180deg,#071029 0%, #0b1220 100%);color:#e6eef8}
+    header{padding:18px 20px;border-bottom:1px solid rgba(255,255,255,0.03);display:flex;gap:12px;align-items:center}
+    .brand{font-weight:700;font-size:18px;letter-spacing:0.3px}
+    .sub{color:var(--muted);font-size:13px}
+
+    .container{display:grid;grid-template-columns:1fr 420px;gap:18px;padding:18px}
+    @media (max-width:980px){.container{grid-template-columns:1fr;padding:12px;}}
+
+    /* Left: content */
+    .content{display:flex;flex-direction:column;gap:12px}
+    .controls{display:flex;gap:8px;align-items:center}
+    .search{display:flex;gap:6px}
+    .btn{background:transparent;border:1px solid rgba(255,255,255,0.06);padding:8px 10px;border-radius:10px;color:var(--muted);cursor:pointer}
+    .btn.primary{background:linear-gradient(90deg,var(--accent),#3b82f6);color:#04243b;border:none}
+
+    #map{height:420px;border-radius:10px;border:1px solid rgba(255,255,255,0.04);overflow:hidden}
+
+    .cards{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+    @media (max-width:980px){.cards{grid-template-columns:1fr}}
+
+    .card{background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,0.03);display:flex;align-items:center;gap:12px}
+    .card .meta{flex:1}
+    .loc{font-weight:700}
+    .temp{font-size:28px;font-weight:800}
+    .small{color:var(--muted);font-size:13px}
+
+    .footer{padding:12px 18px;color:var(--muted);font-size:13px;border-top:1px solid rgba(255,255,255,0.02)}
+
+    /* right column */
+    .sidebar{display:flex;flex-direction:column;gap:10px}
+    .panel{background:rgba(255,255,255,0.02);padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,0.03)}
+
+    a.link{color:var(--accent);text-decoration:none}
+
+    /* loader */
+    .loader{width:18px;height:18px;border-radius:50%;border:3px solid rgba(255,255,255,0.06);border-top-color:var(--accent);animation:spin 1s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    /* small table */
+    table{width:100%;border-collapse:collapse}
+    td,th{padding:6px;font-size:13px}
+    th{color:var(--muted);text-align:left}
+  </style>
+</head>
+<body>
+  <header>
+    <div style="display:flex;flex-direction:column">
+      <div class="brand">Calgary Micro-Weather</div>
+      <div class="sub">Neighbourhood-level live weather (Open‑Meteo)</div>
+    </div>
+    <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+      <div id="status" class="small">Ready</div>
+      <button id="refreshBtn" class="btn" title="Refresh now">Refresh</button>
+      <button id="autoToggle" class="btn primary" title="Toggle auto-refresh">Auto: ON</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="content">
+      <div class="controls">
+        <div class="search">
+          <input id="lookup" type="text" placeholder="Search for a Calgary neighbourhood or click the map" style="padding:8px;border-radius:10px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit;min-width:220px"/>
+          <button id="addBtn" class="btn">Add</button>
+        </div>
+        <div style="margin-left:auto" class="small">Data source: <span class="sub">Open‑Meteo (no key)</span></div>
+      </div>
+
+      <div id="map" aria-label="Calgary map"></div>
+
+      <div class="cards" id="cards"></div>
+
+      <div class="panel" style="display:flex;gap:10px;align-items:center">
+        <div style="flex:1">
+          <div style="font-weight:700">Tips</div>
+          <div class="small">Click markers to focus a neighbourhood. Use the search to add custom coordinates (e.g., "51.0447,-114.0719").</div>
+        </div>
+        <div class="small">Last update: <span id="lastUpdate">—</span></div>
+      </div>
+    </section>
+
+    <aside class="sidebar">
+      <div class="panel">
+        <div style="font-weight:700">Neighbourhoods included</div>
+        <div class="small" id="listNames"></div>
+      </div>
+
+      <div class="panel">
+        <div style="font-weight:700">Details</div>
+        <table>
+          <tbody>
+            <tr><th>Auto-refresh</th><td id="autoStatus">ON (10 min)</td></tr>
+            <tr><th>API</th><td>Open‑Meteo — free</td></tr>
+            <tr><th>Deploy</th><td>GitHub Pages (see README below)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="panel">
+        <div style="font-weight:700">README / Deploy</div>
+        <div class="small">
+          1. Save this file as <code>index.html</code>.<br>
+          2. Create a GitHub repo and push this file to the <code>main</code> branch.<br>
+          3. In GitHub: Settings → Pages → Deploy from <code>main</code> / <code>/ (root)</code>.<br>
+          Your site will be live at <code>https://&lt;username&gt;.github.io/&lt;repo&gt;</code>.
+        </div>
+      </div>
+
+    </aside>
+  </main>
+
+  <div class="footer">Built with ❤️ using Open‑Meteo • No API key required • Data refresh every 10 minutes (configurable)</div>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-o9N1j8kGkQ1xPp4sXQ6ZrP7p0AU3KkQYvY7FvM0zY0M=" crossorigin=""></script>
+  <script>
+    // ----- Configuration -----
+    const AUTO_REFRESH_MS = 10 * 60 * 1000; // 10 minutes
+    const OPEN_METEO_BASE = 'https://api.open-meteo.com/v1/forecast';
+
+    // Predefined Calgary neighbourhoods (name, lat, lon)
+    const PLACES = [
+      {id:'downtown',name:'Downtown Calgary',lat:51.0447,lon:-114.0719},
+      {id:'yyc',name:'Calgary International Airport (YYC)',lat:51.1313,lon:-114.0072},
+      {id:'nw',name:'NW — Arbour Lake',lat:51.1320,lon:-114.2150},
+      {id:'ne',name:'NE — Skyview Ranch',lat:51.1610,lon:-113.9860},
+      {id:'sw',name:'SW — Evergreen',lat:50.9070,lon:-114.1420},
+      {id:'se',name:'SE — Seton',lat:50.8730,lon:-113.9580},
+      {id:'ucalg',name:'University of Calgary',lat:51.0784,lon:-114.1305},
+      {id:'bowness',name:'Bowness',lat:51.0649,lon:-114.1636}
+    ];
+
+    // Runtime state
+    let places = [...PLACES];
+    let markers = {};
+    let autoRefresh = true;
+    let autoTimer = null;
+
+    // ----- Map setup -----
+    const map = L.map('map').setView([51.0447,-114.0719],11);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap contributors'}).addTo(map);
+
+    // Add markers for initial places
+    function addPlaceMarker(p){
+      const m = L.marker([p.lat,p.lon]).addTo(map).bindPopup(`<b>${p.name}</b><div id="popup-${p.id}">Loading…</div>`);
+      m.on('click',()=>{document.getElementById('lookup').value = `${p.lat.toFixed(4)},${p.lon.toFixed(4)}`;fetchAndRender();});
+      markers[p.id]=m;
+    }
+    places.forEach(addPlaceMarker);
+
+    // ----- UI helpers -----
+    const statusEl = document.getElementById('status');
+    const cardsEl = document.getElementById('cards');
+    const listNames = document.getElementById('listNames');
+    const lastUpdate = document.getElementById('lastUpdate');
+    const autoStatus = document.getElementById('autoStatus');
+    const refreshBtn = document.getElementById('refreshBtn');
+    const autoToggle = document.getElementById('autoToggle');
+    const addBtn = document.getElementById('addBtn');
+
+    function setStatus(txt){statusEl.textContent=txt}
+
+    function formatTemp(t){return Math.round(t) + '°C'}
+
+    function renderListNames(){ listNames.innerHTML = places.map(p=>`<div>${p.name}</div>`).join(''); }
+    renderListNames();
+
+    // ----- Fetch weather for one place -----
+    async function fetchWeatherFor(lat,lon){
+      // Using Open-Meteo: request current_weather + hourly humidity & precipitation for next 24h
+      const params = new URLSearchParams({
+        latitude: lat,
+        longitude: lon,
+        current_weather: 'true',
+        hourly: 'relativehumidity_2m,precipitation,temperature_2m',
+        timezone: 'auto'
+      });
+      const url = `${OPEN_METEO_BASE}?${params.toString()}`;
+      const res = await fetch(url);
+      if(!res.ok) throw new Error('API error');
+      return res.json();
+    }
+
+    // ----- Render a single card -----
+    function makeCardEl(p, data){
+      const cur = data.current_weather;
+      const humidity = (data.hourly && data.hourly.relativehumidity_2m && data.hourly.relativehumidity_2m.length) ? data.hourly.relativehumidity_2m[0] : null;
+      const precip = (data.hourly && data.hourly.precipitation && data.hourly.precipitation.length) ? data.hourly.precipitation[0] : 0;
+
+      const div = document.createElement('div');
+      div.className='card';
+      div.innerHTML = `
+        <div style="width:68px;text-align:center">
+          <div style="font-size:24px;font-weight:800" class="temp">${formatTemp(cur.temperature)}</div>
+          <div class="small">${cur.windspeed} m/s</div>
+        </div>
+        <div class="meta">
+          <div class="loc">${p.name}</div>
+          <div class="small">Feels like: ${formatTemp(estimateFeelsLike(cur.temperature,cur.windspeed))} • Humidity: ${humidity!==null?humidity+'%':'N/A'}</div>
+          <div class="small">Precip (next hour est.): ${precip} mm</div>
+        </div>
+        <div style="text-align:right;min-width:80px">
+          <button class="btn" onclick="focusPlace('${p.id}')">Focus</button>
+        </div>
+      `;
+      return div;
+    }
+
+    // Simple feels-like estimator (wind chill / basic approximation)
+    function estimateFeelsLike(tempC, wind_m_s){
+      // convert wind to km/h
+      const v = wind_m_s * 3.6;
+      if(tempC <= 10 && v > 4.8){
+        // wind chill formula (Canadian) in °C
+        const wc = 13.12 + 0.6215*tempC - 11.37*Math.pow(v,0.16) + 0.3965*tempC*Math.pow(v,0.16);
+        return Math.round(wc*10)/10;
+      }
+      // simple approximation for warm: return actual temp
+      return Math.round(tempC*10)/10;
+    }
+
+    // Focus a place on the map
+    window.focusPlace = function(id){
+      const p = places.find(x=>x.id===id);
+      if(!p) return;
+      map.setView([p.lat,p.lon],13,{animate:true});
+      if(markers[id]) markers[id].openPopup();
+    }
+
+    // ----- Main fetch & render routine -----
+    async function fetchAndRender(){
+      setStatus('Updating...');
+      refreshBtn.disabled = true;
+      try{
+        const promises = places.map(async p=>{
+          const data = await fetchWeatherFor(p.lat,p.lon);
+          return {p,data};
+        });
+        const results = await Promise.allSettled(promises);
+
+        // Clear cards
+        cardsEl.innerHTML='';
+
+        results.forEach((r,i)=>{
+          const p = places[i];
+          if(r.status==='fulfilled'){
+            const el = makeCardEl(p,r.value.data);
+            cardsEl.appendChild(el);
+            // update popup
+            const pop = document.getElementById(`popup-${p.id}`);
+            if(pop){
+              pop.innerHTML = `<div style="font-size:13px">${formatTemp(r.value.data.current_weather.temperature)} • ${r.value.data.current_weather.windspeed} m/s</div>`;
+            }
+          } else {
+            const errDiv = document.createElement('div');
+            errDiv.className='card';
+            errDiv.innerHTML = `<div class="meta"><div class="loc">${p.name}</div><div class="small">Error fetching data</div></div>`;
+            cardsEl.appendChild(errDiv);
+          }
+        });
+
+        const now = new Date();
+        lastUpdate.textContent = now.toLocaleString();
+        setStatus('Updated');
+      }catch(err){
+        console.error(err);
+        setStatus('Error');
+      }finally{
+        refreshBtn.disabled = false;
+      }
+    }
+
+    // ----- Add custom place (from search input) -----
+    addBtn.addEventListener('click',()=>{
+      const v = document.getElementById('lookup').value.trim();
+      if(!v) return;
+      // accept lat,lon or name (basic latlon parser)
+      const parts = v.split(',').map(s=>s.trim());
+      if(parts.length===2 && !isNaN(Number(parts[0])) && !isNaN(Number(parts[1]))){
+        const lat = Number(parts[0]); const lon = Number(parts[1]);
+        const id = 'p'+Math.random().toString(36).slice(2,9);
+        const name = `Custom (${lat.toFixed(4)},${lon.toFixed(4)})`;
+        const p = {id,name,lat,lon};
+        places.push(p);
+        addPlaceMarker(p);
+        renderListNames();
+        fetchAndRender();
+        return;
+      }
+      alert('Please enter coordinates as: lat,lon  (e.g. 51.0447,-114.0719)');
+    });
+
+    // ----- Auto-refresh control -----
+    function startAuto(){
+      if(autoTimer) clearInterval(autoTimer);
+      if(autoRefresh) autoTimer = setInterval(fetchAndRender,AUTO_REFRESH_MS);
+      autoStatus.textContent = `${autoRefresh? 'ON (10 min)' : 'OFF'}`;
+      autoToggle.textContent = `Auto: ${autoRefresh? 'ON' : 'OFF'}`;
+      autoToggle.classList.toggle('primary', autoRefresh);
+    }
+    autoToggle.addEventListener('click',()=>{ autoRefresh = !autoRefresh; startAuto(); });
+
+    refreshBtn.addEventListener('click',fetchAndRender);
+
+    // Initial run
+    fetchAndRender();
+    startAuto();
+
+    // Expose a small debug helper to window
+    window._calgaryWeather= {places,fetchAndRender};
+  </script>
+</body>
+</html>

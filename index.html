@@ -4,26 +4,38 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <title>Calgary Micro-Weather — Enhanced</title>
-  <meta name="description" content="Micro-weather for Calgary neighbourhoods — live data from Open‑Meteo with topo map, radar, hourly charts and animations." />
+  <meta name="description" content="Micro-weather for Calgary neighbourhoods — live data from Open-Meteo with topo map, radar, hourly charts and animations." />
 
   <!-- Leaflet -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-sA+e2YkM6t1gVZ0i2b0rjv3k2s0vM6w8g1Lr9g3y0vA=" crossorigin=""/>
-  <!-- Chart.js for hourly charts -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+  <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.3.0/dist/chart.umd.min.js"></script>
 
   <style>
-    /* ----- Layout variables ----- */
     :root{
-      --bg-1:#071029; --bg-2:#0b1220; --card:rgba(255,255,255,0.03); --muted:#9aa7bf; --accent:#60a5fa;
-      --top-offset:48px; /* offset to avoid GitHub top bar when you are logged in */
+      /* background color changed to deep teal gradient per your request */
+      --bg-1:#05282f; --bg-2:#083844;
+      --muted:#9aa7bf; --accent:#60a5fa;
+      --top-offset:48px; /* change to 0 if you don't want the offset */
+      --card-bg: rgba(255,255,255,0.02);
     }
-    /* If you view the site as a visitor (no GitHub bar), set this to 0 by editing --top-offset */
-
     *{box-sizing:border-box}
     html,body,#app{height:100%;margin:0}
-    body{font-family:Inter, system-ui, -apple-system, 'Segoe UI', Roboto, Arial;color:#e6eef8;background:linear-gradient(180deg,var(--bg-1),var(--bg-2));padding-top:var(--top-offset)}
+    body{
+      font-family:Inter, system-ui, -apple-system, 'Segoe UI', Roboto, Arial;
+      color:#e6eef8;
+      background:linear-gradient(180deg,var(--bg-1),var(--bg-2));
+      padding-top:var(--top-offset);
+      -webkit-font-smoothing:antialiased;
+      -moz-osx-font-smoothing:grayscale;
+    }
 
-    header{position:fixed;left:0;right:0;top:var(--top-offset);height:64px;display:flex;align-items:center;gap:12px;padding:12px 18px;background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);backdrop-filter:blur(4px);z-index:1200;border-bottom:1px solid rgba(255,255,255,0.03)}
+    header{
+      position:fixed;left:0;right:0;top:var(--top-offset);height:64px;
+      display:flex;align-items:center;gap:12px;padding:12px 18px;
+      background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);
+      backdrop-filter:blur(4px);z-index:1200;border-bottom:1px solid rgba(255,255,255,0.03)
+    }
     .brand{font-weight:800;font-size:18px}
     .sub{color:var(--muted);font-size:13px}
     .controls{margin-left:auto;display:flex;gap:8px;align-items:center}
@@ -33,39 +45,31 @@
     main{display:grid;grid-template-columns:1fr 420px;gap:18px;padding:100px 18px 22px 18px}
     @media (max-width:980px){main{grid-template-columns:1fr;padding-top:88px}}
 
-    /* Map & left column */
     .left{display:flex;flex-direction:column;gap:12px}
     #map{height:520px;border-radius:12px;border:1px solid rgba(255,255,255,0.03);overflow:hidden;box-shadow:0 6px 22px rgba(2,6,23,0.6)}
-
     .searchbar{display:flex;gap:8px;align-items:center}
     input.search{flex:1;padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit}
 
     .cards{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
     @media (max-width:980px){.cards{grid-template-columns:1fr}}
 
-    .card{background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,0.03);display:flex;align-items:center;gap:12px;transition:transform .18s ease, box-shadow .18s ease}
+    .card{
+      background:var(--card-bg);padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,0.03);
+      display:flex;align-items:center;gap:12px;transition:transform .18s ease, box-shadow .18s ease
+    }
     .card:hover{transform:translateY(-6px);box-shadow:0 10px 40px rgba(2,6,23,0.6)}
     .temp{font-size:26px;font-weight:800}
     .small{color:var(--muted);font-size:13px}
 
-    /* Right column */
     .sidebar{display:flex;flex-direction:column;gap:12px}
     .panel{background:rgba(255,255,255,0.02);padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,0.03)}
 
-    /* chart area */
     .chart-wrap{height:220px;background:linear-gradient(180deg,rgba(255,255,255,0.01),transparent);border-radius:8px;padding:8px}
-
-    /* radar toggle */
-    .leaflet-control.customControl{background:transparent;border:none}
-
-    /* animated weather icon placeholder */
     .weather-icon{width:56px;height:56px;border-radius:12px;background:linear-gradient(180deg,rgba(255,255,255,0.03),transparent);display:flex;align-items:center;justify-content:center;font-weight:800}
 
     footer{padding:12px 18px;color:var(--muted);font-size:13px;border-top:1px solid rgba(255,255,255,0.02);text-align:center}
 
-    /* small responsive tweaks */
     @media (max-width:640px){header{padding:8px 12px}main{padding:92px 10px 20px 10px}}
-
   </style>
 </head>
 <body>
@@ -88,14 +92,14 @@
       <div class="searchbar">
         <input id="lookup" class="search" placeholder="Search neighbourhood or paste lat,lon (e.g. 51.0447,-114.0719)" />
         <button id="addBtn" class="btn">Add</button>
-        <select id="presetSelect" class="btn" style="min-width:150px">
+        <select id="presetSelect" class="btn" style="min-width:170px">
           <option value="">Choose preset area...</option>
         </select>
       </div>
 
       <div id="map"></div>
 
-      <div class="cards" id="cards"></div>
+      <div class="cards" id="cards" aria-live="polite"></div>
 
       <div class="panel">
         <div style="display:flex;justify-content:space-between;align-items:center"><div style="font-weight:700">Hourly Temperature (next 24h)</div><div class="small" id="chartTime">—</div></div>
@@ -122,17 +126,17 @@
     </aside>
   </main>
 
-  <footer>Built with Open‑Meteo, Leaflet, OpenTopoMap and RainViewer • Tip: Open site in Incognito to hide GitHub owner bar</footer>
+  <footer>Built with Open-Meteo, Leaflet, OpenTopoMap and RainViewer • Tip: Open site in Incognito to hide GitHub owner bar</footer>
 
   <!-- Leaflet -->
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-o9N1j8kGkQ1xPp4sXQ6ZrP7p0AU3KkQYvY7FvM0zY0M=" crossorigin=""></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 
   <script>
-    // ----- Config -----
+    // Config
     const OPEN_METEO_BASE = 'https://api.open-meteo.com/v1/forecast';
     const AUTO_REFRESH_MS = 10 * 60 * 1000;
 
-    // Preset Calgary locations (expanded)
+    // Presets
     const PLACES = [
       {id:'downtown',name:'Downtown Calgary',lat:51.0447,lon:-114.0719},
       {id:'yyc',name:'Calgary International Airport (YYC)',lat:51.1313,lon:-114.0072},
@@ -148,37 +152,35 @@
       {id:'west_hillhurst',name:'West Hillhurst',lat:51.0616,lon:-114.1020}
     ];
 
-    // Runtime state
+    // State
     let places = [...PLACES];
     let markers = {};
     let autoRefresh = true;
     let autoTimer = null;
 
-    // ----- Map -----
+    // Map init
     const map = L.map('map',{minZoom:9, maxZoom:16}).setView([51.0447,-114.0719],11);
 
-    // Topographic base (OpenTopoMap)
+    // Topo & OSM
     const topo = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',{maxZoom:17,attribution:'Map: OpenTopoMap (CC-BY-SA)'}).addTo(map);
-
-    // Optional street base
     const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap contributors'});
 
-    // Radar layer using RainViewer (public tiles)
+    // Radar (RainViewer)
     const radarLayer = L.tileLayer('https://tilecache.rainviewer.com/v2/radar/now/{z}/{x}/{y}.png',{opacity:0.65, maxZoom:12, attribution:'Radar: RainViewer'});
 
-    // Marker group
+    // Marker group and helper
     const group = L.featureGroup().addTo(map);
 
     function addMarker(p){
       const m = L.marker([p.lat,p.lon]).addTo(group).bindPopup(`<b>${p.name}</b><div id="popup-${p.id}">Loading…</div>`);
-      m.on('click',()=>{document.getElementById('lookup').value = `${p.lat.toFixed(4)},${p.lon.toFixed(4)}`;fetchAndRender(p.id);});
-      markers[p.id]=m;
+      m.on('click',()=>{ document.getElementById('lookup').value = `${p.lat.toFixed(4)},${p.lon.toFixed(4)}`; fetchAndRender(p.id); });
+      markers[p.id] = m;
     }
 
     places.forEach(addMarker);
-    map.fitBounds(group.getBounds().pad(0.25));
+    if (group.getBounds().isValid()) map.fitBounds(group.getBounds().pad(0.25));
 
-    // Leaflet control for radar
+    // Radar control button inside map
     L.Control.Radar = L.Control.extend({
       onAdd: function(map){
         const div = L.DomUtil.create('div','leaflet-control customControl');
@@ -195,18 +197,19 @@
     });
 
     function toggleRadar(){
+      const toggleBtn = document.getElementById('toggleRadar');
       if(map.hasLayer(radarLayer)){
         map.removeLayer(radarLayer);
-        document.getElementById('toggleRadar').textContent = 'Radar: OFF';
-        document.getElementById('radBtn').textContent = 'Toggle Radar';
+        if(toggleBtn) toggleBtn.textContent = 'Radar: OFF';
+        const rbtn = document.getElementById('radBtn'); if(rbtn) rbtn.textContent = 'Toggle Radar';
       } else {
         radarLayer.addTo(map);
-        document.getElementById('toggleRadar').textContent = 'Radar: ON';
-        document.getElementById('radBtn').textContent = 'Toggle Radar (ON)';
+        if(toggleBtn) toggleBtn.textContent = 'Radar: ON';
+        const rbtn = document.getElementById('radBtn'); if(rbtn) rbtn.textContent = 'Toggle Radar (ON)';
       }
     }
 
-    // ----- UI elements -----
+    // UI elements
     const statusEl = document.getElementById('status');
     const cardsEl = document.getElementById('cards');
     const listNames = document.getElementById('listNames');
@@ -217,7 +220,7 @@
     const autoToggle = document.getElementById('autoToggle');
     const fitAll = document.getElementById('fitAll');
 
-    function setStatus(t){ statusEl.textContent = t }
+    function setStatus(t){ if(statusEl) statusEl.textContent = t }
 
     // populate preset select
     PLACES.forEach(p=>{
@@ -228,7 +231,7 @@
       const id = presetSelect.value; if(!id) return; focusPlace(id);
     });
 
-    // ----- Open-Meteo fetch -----
+    // Open-Meteo fetch
     async function fetchWeatherFor(lat,lon){
       const params = new URLSearchParams({
         latitude: lat,
@@ -239,7 +242,7 @@
       });
       const url = `${OPEN_METEO_BASE}?${params.toString()}`;
       const res = await fetch(url);
-      if(!res.ok) throw new Error('API error');
+      if(!res.ok) throw new Error('API error: ' + res.status);
       return res.json();
     }
 
@@ -247,16 +250,19 @@
 
     function makeCard(p, data){
       const cur = data.current_weather;
-      const humidity = data.hourly && data.hourly.relativehumidity_2m ? data.hourly.relativehumidity_2m[0] : 'N/A';
-      const precip = data.hourly && data.hourly.precipitation ? data.hourly.precipitation[0] : 0;
+      const humidity = (data.hourly && data.hourly.relativehumidity_2m) ? data.hourly.relativehumidity_2m[0] : 'N/A';
+      const precip = (data.hourly && data.hourly.precipitation) ? data.hourly.precipitation[0] : 0;
 
       const div = document.createElement('div'); div.className='card';
       div.innerHTML = `
         <div style="display:flex;align-items:center;gap:12px">
-          <div class="weather-icon">${cur.temperature.toFixed(0)}°</div>
+          <div class="weather-icon" aria-hidden="true">${Math.round(cur.temperature)}°</div>
         </div>
         <div style="flex:1">
-          <div style="display:flex;justify-content:space-between;align-items:center"><div style="font-weight:700">${p.name}</div><div class="small">${new Date().toLocaleTimeString()}</div></div>
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div style="font-weight:700">${p.name}</div>
+            <div class="small">${new Date().toLocaleTimeString()}</div>
+          </div>
           <div class="small">Temp: <strong>${formatTemp(cur.temperature)}</strong> • Wind: ${cur.windspeed} m/s • Humidity: ${humidity}%</div>
           <div class="small">Precip next hr: ${precip} mm</div>
         </div>
@@ -268,89 +274,127 @@
       return div;
     }
 
-    // build cards for all places
+    // fetch & render
     async function fetchAndRender(targetId){
-      setStatus('Updating...'); refreshBtn.disabled = true;
+      setStatus('Updating...');
+      refreshBtn.disabled = true;
       try{
-        const promises = places.map(async p=>{
-          const d = await fetchWeatherFor(p.lat,p.lon);
-          return {p,d};
-        });
-        const results = await Promise.allSettled(promises);
-        cardsEl.innerHTML='';
-        results.forEach((r,i)=>{
+        const all = places.map(p => fetchWeatherFor(p.lat,p.lon).then(d => ({p,d})));
+        const settled = await Promise.allSettled(all);
+
+        cardsEl.innerHTML = '';
+        for(let i=0;i<settled.length;i++){
+          const res = settled[i];
           const p = places[i];
-          if(r.status==='fulfilled'){
-            const el = makeCard(p,r.value.d);
+          if(res.status === 'fulfilled'){
+            const payload = res.value;
+            const el = makeCard(p,payload.d);
             cardsEl.appendChild(el);
             const pop = document.getElementById(`popup-${p.id}`);
-            if(pop) pop.innerHTML = `<div style="font-size:13px">${formatTemp(r.value.d.current_weather.temperature)} • ${r.value.d.current_weather.windspeed} m/s</div>`;
-            // if targetId specified, update chart for that place
-            if(targetId && targetId===p.id) renderHourlyChart(p,r.value.d);
+            if(pop) pop.innerHTML = `<div style="font-size:13px">${formatTemp(payload.d.current_weather.temperature)} • ${payload.d.current_weather.windspeed} m/s</div>`;
+            if(targetId && targetId===p.id) renderHourlyChart(p,payload.d);
           } else {
-            const err = document.createElement('div'); err.className='card'; err.innerHTML = `<div class="small">Error loading ${p.name}</div>`; cardsEl.appendChild(err);
+            const err = document.createElement('div'); err.className='card'; err.innerHTML = `<div class="small">Error loading ${p.name}</div>`;
+            cardsEl.appendChild(err);
           }
-        });
+        }
+
         renderListNames();
         setStatus('Updated');
-      }catch(e){console.error(e); setStatus('Error');}
-      finally{ refreshBtn.disabled=false; }
+      }catch(e){
+        console.error(e);
+        setStatus('Error');
+      } finally {
+        refreshBtn.disabled = false;
+      }
     }
 
     function renderListNames(){ listNames.innerHTML = places.map(p=>`<div>${p.name}</div>`).join(''); }
 
-    // ----- Chart -----
+    // Chart setup
     const ctx = document.getElementById('hourChart').getContext('2d');
-    let hourChart = new Chart(ctx, {type:'line', data:{labels:[],datasets:[{label:'Temp (°C)',data:[],tension:0.3,pointRadius:2}]}, options:{scales:{y:{beginAtZero:false}}}});
+    let hourChart = new Chart(ctx, {
+      type:'line',
+      data:{ labels:[], datasets:[{ label:'Temp (°C)', data:[], tension:0.3, pointRadius:2 }] },
+      options: { responsive:true, maintainAspectRatio:false, scales:{ y:{ beginAtZero:false } } }
+    });
 
-    function renderHourlyChart(p, data){
-      // take next 24 hours from now
-      const now = new Date();
-      const times = data.hourly.time.map(t=>new Date(t));
-      const temps = data.hourly.temperature_2m;
-      // find starting index nearest now
-      let idx = times.findIndex(t=>t>now);
-      if(idx<0) idx = 0;
-      const sliceTimes = times.slice(idx, idx+24);
-      const sliceTemps = temps.slice(idx, idx+24);
-      hourChart.data.labels = sliceTimes.map(t=>t.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}));
-      hourChart.data.datasets[0].data = sliceTemps.map(x=>Math.round(x*10)/10);
-      hourChart.update();
-      document.getElementById('chartTime').textContent = `${p.name}`;
+    function renderHourlyChart(p,data){
+      try{
+        const now = new Date();
+        const times = data.hourly.time.map(t => new Date(t));
+        const temps = data.hourly.temperature_2m;
+        let idx = times.findIndex(t => t > now);
+        if(idx < 0) idx = 0;
+        const sliceTimes = times.slice(idx, idx+24);
+        const sliceTemps = temps.slice(idx, idx+24);
+        hourChart.data.labels = sliceTimes.map(t => t.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}));
+        hourChart.data.datasets[0].data = sliceTemps.map(x => Math.round(x*10)/10);
+        hourChart.update();
+        document.getElementById('chartTime').textContent = p.name;
+      }catch(e){
+        console.error('Chart error', e);
+      }
     }
 
-    // ----- Helpers -----
-    window.focusPlace = function(id){ const p = places.find(x=>x.id===id); if(!p) return; map.setView([p.lat,p.lon],13,{animate:true}); if(markers[id]) markers[id].openPopup(); fetchAndRender(id); }
-    window.removePlace = function(id){ places = places.filter(x=>x.id!==id); if(markers[id]) map.removeLayer(markers[id]); renderListNames(); fetchAndRender(); }
+    // helpers exposed to window
+    window.focusPlace = function(id){
+      const p = places.find(x=>x.id===id); if(!p) return;
+      map.setView([p.lat,p.lon],13,{animate:true});
+      if(markers[id]) markers[id].openPopup();
+      fetchAndRender(id);
+    }
+
+    window.removePlace = function(id){
+      places = places.filter(x=>x.id!==id);
+      if(markers[id]) map.removeLayer(markers[id]);
+      delete markers[id];
+      renderListNames();
+      fetchAndRender();
+    }
 
     // add custom place
-    addBtn.addEventListener('click',()=>{
-      const v = lookup.value.trim(); if(!v) return; const parts = v.split(',').map(s=>s.trim());
+    addBtn.addEventListener('click', ()=>{
+      const v = lookup.value.trim(); if(!v) return;
+      const parts = v.split(',').map(s=>s.trim());
       if(parts.length===2 && !isNaN(Number(parts[0])) && !isNaN(Number(parts[1]))){
-        const lat = Number(parts[0]); const lon = Number(parts[1]); const id = 'p'+Math.random().toString(36).slice(2,9);
+        const lat = Number(parts[0]), lon = Number(parts[1]);
+        const id = 'p' + Math.random().toString(36).slice(2,9);
         const name = `Custom (${lat.toFixed(4)},${lon.toFixed(4)})`;
-        const p = {id,name,lat,lon}; places.push(p); addMarker(p); map.fitBounds(group.getBounds().pad(0.25)); renderListNames(); fetchAndRender(); return;
+        const p = {id,name,lat,lon};
+        places.push(p);
+        addMarker(p);
+        if (group.getBounds().isValid()) map.fitBounds(group.getBounds().pad(0.25));
+        renderListNames();
+        fetchAndRender();
+        lookup.value = '';
+        return;
       }
       alert('Please enter coordinates as: lat,lon (e.g. 51.0447,-114.0719)');
     });
 
-    refreshBtn.addEventListener('click',()=>fetchAndRender());
-    autoToggle.addEventListener('click',()=>{ autoRefresh = !autoRefresh; autoToggle.classList.toggle('primary', autoRefresh); autoToggle.textContent = `Auto: ${autoRefresh? 'ON' : 'OFF'}`; startAuto(); });
+    // refresh, auto, fit all
+    refreshBtn.addEventListener('click', ()=>fetchAndRender());
+    autoToggle.addEventListener('click', ()=>{
+      autoRefresh = !autoRefresh;
+      autoToggle.classList.toggle('primary', autoRefresh);
+      autoToggle.textContent = `Auto: ${autoRefresh? 'ON' : 'OFF'}`;
+      startAuto();
+    });
 
     function startAuto(){ if(autoTimer) clearInterval(autoTimer); if(autoRefresh) autoTimer = setInterval(()=>fetchAndRender(), AUTO_REFRESH_MS); }
     startAuto();
 
-    fitAll.addEventListener('click',()=> map.fitBounds(group.getBounds().pad(0.25)));
+    fitAll.addEventListener('click', ()=> { if(group.getBounds().isValid()) map.fitBounds(group.getBounds().pad(0.25)); });
 
     // initial load
     fetchAndRender();
 
-    // Expose small debug
-    window._calgary = {places, map};
+    // debug
+    window._calgary = { places, map };
 
-    // On load: try to remove GitHub bar overlap for owner viewers by using CSS variable - you can edit --top-offset in :root if needed
-    // Note: GitHub's owner toolbar is controlled by GitHub and cannot be removed by site code; this page simply offsets content so it isn't hidden behind it.
+    // Note: If you want zero offset for top bar (visitors), edit --top-offset in :root to 0
   </script>
-
 </body>
 </html>
+
